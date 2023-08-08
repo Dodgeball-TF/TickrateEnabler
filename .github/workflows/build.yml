@@ -11,18 +11,12 @@ jobs:
       matrix:
         tickrate:
           - ''
-          - 100
-          - 200
         os:
           - ubuntu-20.04
-          - windows-2019
 
         include:
           - os: ubuntu-20.04
             os_short: linux
-
-          - os: windows-2019
-            os_short: win
 
     steps:
       - name: Prepare env
