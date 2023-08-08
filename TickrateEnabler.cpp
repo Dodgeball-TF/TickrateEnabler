@@ -3,31 +3,52 @@
 #include <ISmmPlugin.h>
 #include "tier0/icommandline.h"
 
-PLUGIN_GLOBALVARS();
-SH_DECL_HOOK0(IServerGameDLL, GetTickInterval, const, 0, float);
-
-class TickRatePlugin : public ISmmPlugin
+class TickrateEnabler : public IServerPluginCallbacks
 {
 public:
-	bool Load(PluginId id, ISmmAPI *ismm, char *error, size_t maxlen, bool late);
-	bool Unload(char *error, size_t maxlen);
+	TickrateEnabler(){};
+	~TickrateEnabler(){};
 
-public:
-	const char *GetAuthor();
-	const char *GetName();
-	const char *GetDescription();
-	const char *GetURL();
-	const char *GetLicense();
-	const char *GetVersion();
-	const char *GetDate();
-	const char *GetLogTag();
+	// IServerPluginCallbacks methods
+	virtual bool Load(CreateInterfaceFn interfaceFactory, CreateInterfaceFn gameServerFactory);
+	virtual void Unload(void);
+	virtual void Pause(void){};
+	virtual void UnPause(void){};
+	virtual const char *GetPluginDescription(void);
+	virtual void LevelInit(char const *pMapName){};
+	virtual void ServerActivate(edict_t *pEdictList, int edictCount, int clientMax){};
+	virtual void GameFrame(bool simulating){};
+	virtual void LevelShutdown(void){};
+	virtual void ClientActive(edict_t *pEntity){};
+	virtual void ClientFullyConnect(edict_t *pEntity){};
+	virtual void ClientDisconnect(edict_t *pEntity){};
+	virtual void ClientPutInServer(edict_t *pEntity, char const *playername){};
+	virtual void SetCommandClient(int index){};
+	virtual void ClientSettingsChanged(edict_t *pEdict){};
+	virtual PLUGIN_RESULT ClientConnect(bool *bAllowConnect, edict_t *pEntity, const char *pszName, const char *pszAddress, char *reject, int maxrejectlen) { return PLUGIN_CONTINUE; };
+	virtual PLUGIN_RESULT ClientCommand(edict_t *pEntity, const CCommand &args) { return PLUGIN_CONTINUE; };
+	virtual PLUGIN_RESULT NetworkIDValidated(const char *pszUserName, const char *pszNetworkID) { return PLUGIN_CONTINUE; };
+	virtual void OnQueryCvarValueFinished(QueryCvarCookie_t iCookie, edict_t *pPlayerEntity, EQueryCvarValueStatus eStatus, const char *pCvarName, const char *pCvarValue){};
+
+	// added with version 3 of the interface.
+	virtual void OnEdictAllocated(edict_t *edict){};
+	virtual void OnEdictFreed(const edict_t *edict){};
+
+	// added with version 4 of the interface.
+	virtual bool BNetworkCryptKeyCheckRequired(uint32 unFromIP, uint16 usFromPort, uint32 unAccountIdProvidedByClient, bool bClientWantsToUseCryptKey) { return false; };
+	virtual bool BNetworkCryptKeyValidate(uint32 unFromIP, uint16 usFromPort, uint32 unAccountIdProvidedByClient, int nEncryptionKeyIndexFromClient, int numEncryptedBytesFromClient, byte *pbEncryptedBufferFromClient, byte *pbPlainTextKeyForNetchan) { return false; };
 };
 
 IServerGameDLL *server = nullptr;
-TickRatePlugin g_TickrateEnabler;
+SourceHook::Impl::CSourceHookImpl g_SourceHook;
+SourceHook::ISourceHook *g_SHPtr = &g_SourceHook;
+int g_PLID = 0;
+TickrateEnabler g_TickrateEnabler;
 
-PLUGIN_EXPOSE(TickRatePlugin, g_TickRatePlugin);
-EXPOSE_SINGLE_INTERFACE_GLOBALVAR(TickRatePlugin, IServerPluginCallbacks, INTERFACEVERSION_ISERVERPLUGINCALLBACKS, g_TickrateEnabler);
+PLUGIN_EXPOSE(TickrateEnabler, g_TickRatePlugin);
+EXPOSE_SINGLE_INTERFACE_GLOBALVAR(TickrateEnabler, IServerPluginCallbacks, INTERFACEVERSION_ISERVERPLUGINCALLBACKS, g_TickrateEnabler);
+
+SH_DECL_HOOK0(IServerGameDLL, GetTickInterval, const, 0, float);
 
 float GetTickInterval()
 {
@@ -40,10 +61,9 @@ const char *TickrateEnabler::GetPluginDescription(void)
 	return "TickrateEnabler for TF2";
 }
 
-bool TickRatePlugin::Load(CreateInterfaceFn interfaceFactory, CreateInterfaceFn gameServerFactory)
+bool TickrateEnabler::Load(CreateInterfaceFn interfaceFactory, CreateInterfaceFn gameServerFactory)
 {
 	PLUGIN_SAVEVARS();
-	// don't need to check METAMOD_PLAPI_VERSION here
 	GET_V_IFACE_ANY(GetServerFactory, server, IServerGameDLL, INTERFACEVERSION_SERVERGAMEDLL);
 
 	server = (IServerGameDLL *)gameServerFactory("ServerGameDLL012", NULL);
@@ -58,7 +78,7 @@ bool TickRatePlugin::Load(CreateInterfaceFn interfaceFactory, CreateInterfaceFn 
 	return true;
 }
 
-void TickRatePlugin::Unload(void)
+void TickrateEnabler::Unload(void)
 {
 	SH_REMOVE_HOOK(IServerGameDLL, GetTickInterval, server, SH_STATIC(GetTickInterval), false);
 }
