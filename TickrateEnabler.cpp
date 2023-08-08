@@ -1,6 +1,5 @@
 #include "eiface.h"
 #include "sourcehook/sourcehook_impl.h"
-
 class TickrateEnabler : public IServerPluginCallbacks
 {
 public:
@@ -36,20 +35,16 @@ public:
 	virtual bool BNetworkCryptKeyCheckRequired(uint32 unFromIP, uint16 usFromPort, uint32 unAccountIdProvidedByClient, bool bClientWantsToUseCryptKey) { return false; };
 	virtual bool BNetworkCryptKeyValidate(uint32 unFromIP, uint16 usFromPort, uint32 unAccountIdProvidedByClient, int nEncryptionKeyIndexFromClient, int numEncryptedBytesFromClient, byte *pbEncryptedBufferFromClient, byte *pbPlainTextKeyForNetchan) { return false; };
 };
-// No idea why this is required for linux.
-ICvar *g_pCVar = NULL;
 
-TickrateEnabler g_EmptyServerPlugin;
-EXPOSE_SINGLE_INTERFACE_GLOBALVAR(TickrateEnabler, IServerPluginCallbacks, INTERFACEVERSION_ISERVERPLUGINCALLBACKS, g_EmptyServerPlugin);
-
-// SourceHook Embedding
+IServerGameDLL *server = nullptr;
 SourceHook::Impl::CSourceHookImpl g_SourceHook;
 SourceHook::ISourceHook *g_SHPtr = &g_SourceHook;
 int g_PLID = 0;
+TickrateEnabler g_TickrateEnabler;
+
+EXPOSE_SINGLE_INTERFACE_GLOBALVAR(TickrateEnabler, IServerPluginCallbacks, INTERFACEVERSION_ISERVERPLUGINCALLBACKS, g_TickrateEnabler);
 
 SH_DECL_HOOK0(IServerGameDLL, GetTickInterval, const, 0, float);
-
-IServerGameDLL *gamedll = NULL;
 
 float GetTickInterval()
 {
@@ -64,19 +59,19 @@ const char *TickrateEnabler::GetPluginDescription(void)
 
 bool TickrateEnabler::Load(CreateInterfaceFn interfaceFactory, CreateInterfaceFn gameServerFactory)
 {
-	gamedll = (IServerGameDLL *)gameServerFactory("ServerGameDLL012", NULL);
-	if (!gamedll)
+	server = (IServerGameDLL *)gameServerFactory("ServerGameDLL012", NULL);
+	if (!server)
 	{
 		Warning("Failed to get a pointer on ServerGameDLL.\n");
 		return false;
 	}
 
-	SH_ADD_HOOK(IServerGameDLL, GetTickInterval, gamedll, SH_STATIC(GetTickInterval), false);
+	SH_ADD_HOOK(IServerGameDLL, GetTickInterval, server, SH_STATIC(GetTickInterval), false);
 
 	return true;
 }
 
 void TickrateEnabler::Unload(void)
 {
-	SH_REMOVE_HOOK(IServerGameDLL, GetTickInterval, gamedll, SH_STATIC(GetTickInterval), false);
+	SH_REMOVE_HOOK(IServerGameDLL, GetTickInterval, server, SH_STATIC(GetTickInterval), false);
 }
