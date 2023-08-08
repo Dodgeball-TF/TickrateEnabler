@@ -63,9 +63,6 @@ const char *TickrateEnabler::GetPluginDescription(void)
 
 bool TickrateEnabler::Load(CreateInterfaceFn interfaceFactory, CreateInterfaceFn gameServerFactory)
 {
-	PLUGIN_SAVEVARS();
-	GET_V_IFACE_ANY(GetServerFactory, server, IServerGameDLL, INTERFACEVERSION_SERVERGAMEDLL);
-
 	server = (IServerGameDLL *)gameServerFactory("ServerGameDLL012", NULL);
 	if (!server)
 	{
