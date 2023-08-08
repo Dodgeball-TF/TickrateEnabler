@@ -1,5 +1,11 @@
 #include "eiface.h"
 #include "sourcehook/sourcehook_impl.h"
+#include <ISmmPlugin.h>
+#include "tier0/icommandline.h"
+
+PLUGIN_GLOBALVARS();
+SH_DECL_HOOK0(IServerGameDLL, GetTickInterval, const, 0, float);
+
 class TickrateEnabler : public IServerPluginCallbacks
 {
 public:
@@ -42,9 +48,8 @@ SourceHook::ISourceHook *g_SHPtr = &g_SourceHook;
 int g_PLID = 0;
 TickrateEnabler g_TickrateEnabler;
 
+PLUGIN_EXPOSE(TickRatePlugin, g_TickRatePlugin);
 EXPOSE_SINGLE_INTERFACE_GLOBALVAR(TickrateEnabler, IServerPluginCallbacks, INTERFACEVERSION_ISERVERPLUGINCALLBACKS, g_TickrateEnabler);
-
-SH_DECL_HOOK0(IServerGameDLL, GetTickInterval, const, 0, float);
 
 float GetTickInterval()
 {
