@@ -43,7 +43,7 @@ IServerGameDLL *server = nullptr;
 TickrateEnabler g_TickrateEnabler;
 
 PLUGIN_EXPOSE(TickrateEnabler, g_TickRatePlugin);
-EXPOSE_SINGLE_INTERFACE_GLOBALVAR(TickrateEnabler, IServerPluginCallbacks, INTERFACEVERSION_ISERVERPLUGINCALLBACKS, g_TickrateEnabler);
+// EXPOSE_SINGLE_INTERFACE_GLOBALVAR(TickrateEnabler, IServerPluginCallbacks, INTERFACEVERSION_ISERVERPLUGINCALLBACKS, g_TickrateEnabler);
 
 SH_DECL_HOOK0(IServerGameDLL, GetTickInterval, const, 0, float);
 
