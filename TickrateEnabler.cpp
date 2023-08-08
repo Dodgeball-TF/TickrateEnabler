@@ -1,7 +1,5 @@
 #include "eiface.h"
 #include "sourcehook/sourcehook_impl.h"
-#include <ISmmPlugin.h>
-#include "tier0/icommandline.h"
 
 class TickrateEnabler : public IServerPluginCallbacks
 {
@@ -38,14 +36,20 @@ public:
 	virtual bool BNetworkCryptKeyCheckRequired(uint32 unFromIP, uint16 usFromPort, uint32 unAccountIdProvidedByClient, bool bClientWantsToUseCryptKey) { return false; };
 	virtual bool BNetworkCryptKeyValidate(uint32 unFromIP, uint16 usFromPort, uint32 unAccountIdProvidedByClient, int nEncryptionKeyIndexFromClient, int numEncryptedBytesFromClient, byte *pbEncryptedBufferFromClient, byte *pbPlainTextKeyForNetchan) { return false; };
 };
+// No idea why this is required for linux.
+ICvar *g_pCVar = NULL;
 
-IServerGameDLL *server = nullptr;
-TickrateEnabler g_TickrateEnabler;
+TickrateEnabler g_EmptyServerPlugin;
+EXPOSE_SINGLE_INTERFACE_GLOBALVAR(TickrateEnabler, IServerPluginCallbacks, INTERFACEVERSION_ISERVERPLUGINCALLBACKS, g_EmptyServerPlugin);
 
-PLUGIN_EXPOSE(TickrateEnabler, g_TickRatePlugin);
-// EXPOSE_SINGLE_INTERFACE_GLOBALVAR(TickrateEnabler, IServerPluginCallbacks, INTERFACEVERSION_ISERVERPLUGINCALLBACKS, g_TickrateEnabler);
+// SourceHook Embedding
+SourceHook::Impl::CSourceHookImpl g_SourceHook;
+SourceHook::ISourceHook *g_SHPtr = &g_SourceHook;
+int g_PLID = 0;
 
 SH_DECL_HOOK0(IServerGameDLL, GetTickInterval, const, 0, float);
+
+IServerGameDLL *gamedll = NULL;
 
 float GetTickInterval()
 {
@@ -60,19 +64,19 @@ const char *TickrateEnabler::GetPluginDescription(void)
 
 bool TickrateEnabler::Load(CreateInterfaceFn interfaceFactory, CreateInterfaceFn gameServerFactory)
 {
-	server = (IServerGameDLL *)gameServerFactory("ServerGameDLL012", NULL);
-	if (!server)
+	gamedll = (IServerGameDLL *)gameServerFactory("ServerGameDLL012", NULL);
+	if (!gamedll)
 	{
 		Warning("Failed to get a pointer on ServerGameDLL.\n");
 		return false;
 	}
 
-	SH_ADD_HOOK(IServerGameDLL, GetTickInterval, server, SH_STATIC(GetTickInterval), false);
+	SH_ADD_HOOK(IServerGameDLL, GetTickInterval, gamedll, SH_STATIC(GetTickInterval), false);
 
 	return true;
 }
 
 void TickrateEnabler::Unload(void)
 {
-	SH_REMOVE_HOOK(IServerGameDLL, GetTickInterval, server, SH_STATIC(GetTickInterval), false);
+	SH_REMOVE_HOOK(IServerGameDLL, GetTickInterval, gamedll, SH_STATIC(GetTickInterval), false);
 }
