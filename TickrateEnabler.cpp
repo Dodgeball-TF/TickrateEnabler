@@ -40,9 +40,6 @@ public:
 };
 
 IServerGameDLL *server = nullptr;
-SourceHook::Impl::CSourceHookImpl g_SourceHook;
-SourceHook::ISourceHook *g_SHPtr = &g_SourceHook;
-int g_PLID = 0;
 TickrateEnabler g_TickrateEnabler;
 
 PLUGIN_EXPOSE(TickrateEnabler, g_TickRatePlugin);
