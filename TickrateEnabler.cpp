@@ -54,7 +54,7 @@ public:
 IServerGameDLL *server = nullptr;
 
 TickrateEnabler g_TickrateEnabler;
-EXPOSE_SINGLE_INTERFACE_GLOBALVAR(TickrateEnabler, IServerPluginCallbacks, INTERFACEVERSION_ISERVERPLUGINCALLBACKS, g_TickrateEnabler);
+PLUGIN_EXPOSE(TickRatePlugin, g_TickRatePlugin);
 
 float GetTickInterval()
 {
