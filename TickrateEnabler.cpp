@@ -10,6 +10,7 @@
 #include <sourcehook/sourcehook_impl.h>
 #include <eiface.h>
 #include <tier0/icommandline.h>
+#include <ISmmPlugin.h>
 
 class TickrateEnabler: public IServerPluginCallbacks
 {
