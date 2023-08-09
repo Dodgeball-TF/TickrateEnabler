@@ -53,6 +53,7 @@ class TickRatePlugin : public ISmmPlugin
 
 TickRatePlugin g_TickRatePlugin;
 PLUGIN_EXPOSE(TickRatePlugin, g_TickRatePlugin);
+EXPOSE_SINGLE_INTERFACE_GLOBALVAR(TickRatePlugin, ISmmPlugin, INTERFACEVERSION_ISERVERPLUGINCALLBACKS, g_TickRatePlugin);
 
 IServerGameDLL *server = NULL;
 
@@ -63,7 +64,7 @@ bool TickRatePlugin::Load(PluginId id, ISmmAPI *ismm, char *error, size_t maxlen
     // don't need to check METAMOD_PLAPI_VERSION here
     GET_V_IFACE_ANY(GetServerFactory, server, IServerGameDLL, INTERFACEVERSION_SERVERGAMEDLL);
     // detour GetTickInt
-    SH_ADD_HOOK_STATICFUNC(IServerGameDLL, GetTickInterval, server, Hook_GetTickInterval, false);
+    SH_ADD_HOOK(IServerGameDLL, GetTickInterval, server, SH_STATIC(Hook_GetTickInterval), false);
 
     // spew to user that they installed us properly
     Warning("\n[TFTickrate] Loaded.\n\n");
@@ -73,7 +74,7 @@ bool TickRatePlugin::Load(PluginId id, ISmmAPI *ismm, char *error, size_t maxlen
 
 bool TickRatePlugin::Unload(char *error, size_t maxlen)
 {
-    SH_REMOVE_HOOK_STATICFUNC(IServerGameDLL, GetTickInterval, server, Hook_GetTickInterval, false);
+    SH_REMOVE_HOOK(IServerGameDLL, GetTickInterval, server, SH_STATIC(Hook_GetTickInterval), false);
     return true;
 }
 
