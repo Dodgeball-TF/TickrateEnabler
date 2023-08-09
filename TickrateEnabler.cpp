@@ -52,17 +52,13 @@ public:
 };
 
 IServerGameDLL *server = nullptr;
-SourceHook::Impl::CSourceHookImpl g_SourceHook;
-SourceHook::ISourceHook *g_SHPtr = &g_SourceHook;
-int g_PLID = 0;
 
 TickrateEnabler g_TickrateEnabler;
 EXPOSE_SINGLE_INTERFACE_GLOBALVAR(TickrateEnabler, IServerPluginCallbacks, INTERFACEVERSION_ISERVERPLUGINCALLBACKS, g_TickrateEnabler);
 
-SH_DECL_HOOK0(IServerGameDLL, GetTickInterval, const, 0, float);
-
 float GetTickInterval()
 {
+	Warning("\n[TickrateEnabler] Hook called...\n\n");
 #ifndef TICK_INTERVAL
 	float tickinterval = DEFAULT_TICK_INTERVAL;
 
@@ -81,11 +77,12 @@ float GetTickInterval()
 
 bool TickrateEnabler::Load(CreateInterfaceFn interfaceFactory, CreateInterfaceFn gameServerFactory)
 {
+	Warning("\n[TickrateEnabler] Loading...\n\n");
 	server = reinterpret_cast<IServerGameDLL*>(gameServerFactory("ServerGameDLL010", nullptr));
 
 	if (!server)
 	{
-		Warning("Failed to get a pointer on ServerGameDLL.");
+		Warning("\nFailed to get a pointer on ServerGameDLL.\n\n");
 		return false;
 	}
 
