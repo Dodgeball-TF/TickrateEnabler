@@ -11,6 +11,8 @@
 #include <eiface.h>
 #include <tier0/icommandline.h>
 
+PLUGIN_GLOBALVARS();
+
 class TickrateEnabler: public IServerPluginCallbacks
 {
 public:
@@ -81,6 +83,7 @@ float GetTickInterval()
 
 bool TickrateEnabler::Load(CreateInterfaceFn interfaceFactory, CreateInterfaceFn gameServerFactory)
 {
+	PLUGIN_SAVEVARS();
 	Warning("\n[TickrateEnabler] Loading...\n\n");
 	GET_V_IFACE_ANY(GetServerFactory, server, IServerGameDLL, INTERFACEVERSION_SERVERGAMEDLL);
 
