@@ -112,7 +112,7 @@ IServerGameDLL *gamedll = NULL;
 //---------------------------------------------------------------------------------
 bool CEmptyServerPlugin::Load(	CreateInterfaceFn interfaceFactory, CreateInterfaceFn gameServerFactory )
 {
-	gamedll = (IServerGameDLL*)gameServerFactory("ServerGameDLL010",NULL);
+	gamedll = (IServerGameDLL*)gameServerFactory("ServerGameDLL012",NULL);
 	if(!gamedll)
 	{
 		Warning("Failed to get a pointer on ServerGameDLL.\n");
