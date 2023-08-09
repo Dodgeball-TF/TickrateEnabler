@@ -17,6 +17,7 @@ for sdk_name in VSP.sdks:
 
     binary.sources += [
       'TickrateEnabler.cpp',
+      os.path.join(VSP.mms_root, 'core', 'ISmmPlugin.h'),
       os.path.join(VSP.mms_root, 'core', 'sourcehook', 'sourcehook.cpp'),
       os.path.join(VSP.mms_root, 'core', 'sourcehook', 'sourcehook_impl_chookidman.cpp'),
       os.path.join(VSP.mms_root, 'core', 'sourcehook', 'sourcehook_impl_chookmaninfo.cpp'),
