@@ -52,13 +52,18 @@ public:
 };
 
 IServerGameDLL *server = nullptr;
+SourceHook::Impl::CSourceHookImpl g_SourceHook;
+SourceHook::ISourceHook *g_SHPtr = &g_SourceHook;
+int g_PLID = 0;
 
 TickrateEnabler g_TickrateEnabler;
-PLUGIN_EXPOSE(TickRatePlugin, g_TickRatePlugin);
+EXPOSE_SINGLE_INTERFACE_GLOBALVAR(TickrateEnabler, IServerPluginCallbacks, INTERFACEVERSION_ISERVERPLUGINCALLBACKS, g_TickrateEnabler);
 
-float GetTickInterval()
+SH_DECL_HOOK0(IServerGameDLL, GetTickInterval, const, 0, float);
+
+float Hook_GetTickInterval()
 {
-	Warning("\n[TickrateEnabler] Hook called...\n\n");
+	Warning("\n[TickrateEnabler] Hooked...\n\n");
 #ifndef TICK_INTERVAL
 	float tickinterval = DEFAULT_TICK_INTERVAL;
 
@@ -78,15 +83,10 @@ float GetTickInterval()
 bool TickrateEnabler::Load(CreateInterfaceFn interfaceFactory, CreateInterfaceFn gameServerFactory)
 {
 	Warning("\n[TickrateEnabler] Loading...\n\n");
-	server = reinterpret_cast<IServerGameDLL*>(gameServerFactory("ServerGameDLL010", nullptr));
-
-	if (!server)
-	{
-		Warning("\nFailed to get a pointer on ServerGameDLL.\n\n");
-		return false;
-	}
-
-	SH_ADD_HOOK(IServerGameDLL, GetTickInterval, server, SH_STATIC(GetTickInterval), false);
+	// don't need to check METAMOD_PLAPI_VERSION here
+    	GET_V_IFACE_ANY(GetServerFactory, server, IServerGameDLL, INTERFACEVERSION_SERVERGAMEDLL);
+    	// detour GetTickInt
+    	SH_ADD_HOOK_STATICFUNC(IServerGameDLL, GetTickInterval, server, GetTickInterval, false);
 
 	return true;
 }
