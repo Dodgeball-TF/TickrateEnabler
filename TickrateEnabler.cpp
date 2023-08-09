@@ -1,82 +1,89 @@
+#include <ISmmPlugin.h>
+#include "tier0/icommandline.h"
 #include "eiface.h"
 #include "sourcehook/sourcehook_impl.h"
 
-class TickrateEnabler : public IServerPluginCallbacks
-{
-public:
-	TickrateEnabler(){};
-	~TickrateEnabler(){};
-
-	// IServerPluginCallbacks methods
-	virtual bool Load(CreateInterfaceFn interfaceFactory, CreateInterfaceFn gameServerFactory);
-	virtual void Unload(void);
-	virtual void Pause(void){};
-	virtual void UnPause(void){};
-	virtual const char *GetPluginDescription(void);
-	virtual void LevelInit(char const *pMapName){};
-	virtual void ServerActivate(edict_t *pEdictList, int edictCount, int clientMax){};
-	virtual void GameFrame(bool simulating){};
-	virtual void LevelShutdown(void){};
-	virtual void ClientActive(edict_t *pEntity){};
-	virtual void ClientFullyConnect(edict_t *pEntity){};
-	virtual void ClientDisconnect(edict_t *pEntity){};
-	virtual void ClientPutInServer(edict_t *pEntity, char const *playername){};
-	virtual void SetCommandClient(int index){};
-	virtual void ClientSettingsChanged(edict_t *pEdict){};
-	virtual PLUGIN_RESULT ClientConnect(bool *bAllowConnect, edict_t *pEntity, const char *pszName, const char *pszAddress, char *reject, int maxrejectlen) { return PLUGIN_CONTINUE; };
-	virtual PLUGIN_RESULT ClientCommand(edict_t *pEntity, const CCommand &args) { return PLUGIN_CONTINUE; };
-	virtual PLUGIN_RESULT NetworkIDValidated(const char *pszUserName, const char *pszNetworkID) { return PLUGIN_CONTINUE; };
-	virtual void OnQueryCvarValueFinished(QueryCvarCookie_t iCookie, edict_t *pPlayerEntity, EQueryCvarValueStatus eStatus, const char *pCvarName, const char *pCvarValue){};
-
-	// added with version 3 of the interface.
-	virtual void OnEdictAllocated(edict_t *edict){};
-	virtual void OnEdictFreed(const edict_t *edict){};
-
-	// added with version 4 of the interface.
-	virtual bool BNetworkCryptKeyCheckRequired(uint32 unFromIP, uint16 usFromPort, uint32 unAccountIdProvidedByClient, bool bClientWantsToUseCryptKey) { return false; };
-	virtual bool BNetworkCryptKeyValidate(uint32 unFromIP, uint16 usFromPort, uint32 unAccountIdProvidedByClient, int nEncryptionKeyIndexFromClient, int numEncryptedBytesFromClient, byte *pbEncryptedBufferFromClient, byte *pbPlainTextKeyForNetchan) { return false; };
-};
-// No idea why this is required for linux.
-ICvar *g_pCVar = NULL;
-
-TickrateEnabler g_EmptyServerPlugin;
-EXPOSE_SINGLE_INTERFACE_GLOBALVAR(TickrateEnabler, IServerPluginCallbacks, INTERFACEVERSION_ISERVERPLUGINCALLBACKS, g_EmptyServerPlugin);
-
-// SourceHook Embedding
-SourceHook::Impl::CSourceHookImpl g_SourceHook;
-SourceHook::ISourceHook *g_SHPtr = &g_SourceHook;
-int g_PLID = 0;
-
+PLUGIN_GLOBALVARS();
 SH_DECL_HOOK0(IServerGameDLL, GetTickInterval, const, 0, float);
 
-IServerGameDLL *gamedll = NULL;
+// i know this is defined in const.h but i'm including it for code readability
+#define DEFAULT_TICK_INT (0.015)
+#define DEFAULT_TICKRATE (1.0 / DEFAULT_TICK_INT) // = 66.666etc
 
-float GetTickInterval()
+float Hook_GetTickInterval()
 {
-	float tickinterval = 0.01f;
-	RETURN_META_VALUE(MRES_SUPERCEDE, tickinterval);
+    float tickrate      = DEFAULT_TICKRATE;
+    float tickinterval  = DEFAULT_TICK_INT;
+
+    // check if the user defined a tickrate
+    if (CommandLine()->CheckParm("-tickrate"))
+    {
+        // get the tickrate value
+        tickrate = CommandLine()->ParmValue( "-tickrate", float(DEFAULT_TICKRATE) );
+
+        // convert it to a tick int value (1/x)
+        tickinterval = (1.0f / tickrate);
+
+        // tell them that the values they set are getting set
+        Warning("\n[TFTickrate] Tickrate set to %.1f, tick interval set to %f\n\n", tickrate, tickinterval);
+    }
+    else
+    {
+        // cry about it
+        Warning("\n[TFTickrate] Tickrate not set, using default %.1f\n\n", tickrate);
+    }
+
+    // don't call the original func
+    RETURN_META_VALUE(MRES_SUPERCEDE, tickinterval );
 }
 
-const char *TickrateEnabler::GetPluginDescription(void)
+class TickRatePlugin : public ISmmPlugin
 {
-	return "TickrateEnabler for TF2";
+    public:
+        bool Load(PluginId id, ISmmAPI *ismm, char *error, size_t maxlen, bool late);
+        bool Unload(char *error, size_t maxlen);
+    public:
+        const char *GetAuthor();
+        const char *GetName();
+        const char *GetDescription();
+        const char *GetURL();
+        const char *GetLicense();
+        const char *GetVersion();
+        const char *GetDate();
+        const char *GetLogTag();
+};
+
+TickRatePlugin g_TickRatePlugin;
+PLUGIN_EXPOSE(TickRatePlugin, g_TickRatePlugin);
+
+IServerGameDLL *server = NULL;
+
+bool TickRatePlugin::Load(PluginId id, ISmmAPI *ismm, char *error, size_t maxlen, bool late)
+{
+    PLUGIN_SAVEVARS();
+
+    // don't need to check METAMOD_PLAPI_VERSION here
+    GET_V_IFACE_ANY(GetServerFactory, server, IServerGameDLL, INTERFACEVERSION_SERVERGAMEDLL);
+    // detour GetTickInt
+    SH_ADD_HOOK(IServerGameDLL, GetTickInterval, server, SH_STATIC(Hook_GetTickInterval), false);
+
+    // spew to user that they installed us properly
+    Warning("\n[TFTickrate] Loaded.\n\n");
+
+    return true;
 }
 
-bool TickrateEnabler::Load(CreateInterfaceFn interfaceFactory, CreateInterfaceFn gameServerFactory)
+bool TickRatePlugin::Unload(char *error, size_t maxlen)
 {
-	gamedll = (IServerGameDLL *)gameServerFactory("ServerGameDLL012", NULL);
-	if (!gamedll)
-	{
-		Warning("Failed to get a pointer on ServerGameDLL.\n");
-		return false;
-	}
-
-	SH_ADD_HOOK(IServerGameDLL, GetTickInterval, gamedll, SH_STATIC(GetTickInterval), false);
-
-	return true;
+    SH_REMOVE_HOOK_STATICFUNC(IServerGameDLL, GetTickInterval, server, Hook_GetTickInterval, false);
+    return true;
 }
 
-void TickrateEnabler::Unload(void)
-{
-	SH_REMOVE_HOOK(IServerGameDLL, GetTickInterval, gamedll, SH_STATIC(GetTickInterval), false);
-}
+const char *TickRatePlugin::GetLicense()        { return "MIT"; }
+const char *TickRatePlugin::GetVersion()        { return "0.2.0"; }
+const char *TickRatePlugin::GetDate()           { return __DATE__; }
+const char *TickRatePlugin::GetLogTag()         { return "mms-unlocked-tickrate"; }
+const char *TickRatePlugin::GetAuthor()         { return "ldesgoui, sappho.io"; }
+const char *TickRatePlugin::GetDescription()    { return "Force a TF2 server's tickrate with the -tickrate command line parameter"; }
+const char *TickRatePlugin::GetName()           { return "Unlocked Tickrate"; }
+const char *TickRatePlugin::GetURL()            { return "https://github.com/ldesgoui/mms-unlocked-tickrate"; }
