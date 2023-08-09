@@ -86,12 +86,12 @@ bool TickrateEnabler::Load(CreateInterfaceFn interfaceFactory, CreateInterfaceFn
 	// don't need to check METAMOD_PLAPI_VERSION here
     	GET_V_IFACE_ANY(GetServerFactory, server, IServerGameDLL, INTERFACEVERSION_SERVERGAMEDLL);
     	// detour GetTickInt
-    	SH_ADD_HOOK_STATICFUNC(IServerGameDLL, GetTickInterval, server, GetTickInterval, false);
+    	SH_ADD_HOOK_STATICFUNC(IServerGameDLL, GetTickInterval, server, Hook_GetTickInterval, false);
 
 	return true;
 }
 
 void TickrateEnabler::Unload(void)
 {
-	SH_REMOVE_HOOK(IServerGameDLL, GetTickInterval, server, SH_STATIC(GetTickInterval), false);
+	SH_REMOVE_HOOK(IServerGameDLL, GetTickInterval, server, SH_STATIC(Hook_GetTickInterval), false);
 }
