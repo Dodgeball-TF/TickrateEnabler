@@ -5,7 +5,7 @@
 // $NoKeywords: $
 //
 //===========================================================================//
-
+#include <ISmmPlugin.h>
 #include <stdio.h>
 #include <sourcehook/sourcehook_impl.h>
 #include <eiface.h>
@@ -82,13 +82,7 @@ float GetTickInterval()
 bool TickrateEnabler::Load(CreateInterfaceFn interfaceFactory, CreateInterfaceFn gameServerFactory)
 {
 	Warning("\n[TickrateEnabler] Loading...\n\n");
-	server = reinterpret_cast<IServerGameDLL*>(gameServerFactory(INTERFACEVERSION_SERVERGAMEDLL, nullptr));
-
-	if (!server)
-	{
-		Warning("Failed to get a pointer on ServerGameDLL.");
-		return false;
-	}
+	GET_V_IFACE_ANY(GetServerFactory, server, IServerGameDLL, INTERFACEVERSION_SERVERGAMEDLL);
 
 	SH_ADD_HOOK(IServerGameDLL, GetTickInterval, server, SH_STATIC(GetTickInterval), false);
 
