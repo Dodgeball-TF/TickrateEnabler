@@ -7,8 +7,8 @@
 //===========================================================================//
 
 #include <stdio.h>
-#include <sourcehook/sourcehook_impl.h>
-#include <eiface.h>
+// #include <sourcehook/sourcehook_impl.h>
+// #include <eiface.h>
 #include <tier0/icommandline.h>
 #include <ISmmPlugin.h>
 
