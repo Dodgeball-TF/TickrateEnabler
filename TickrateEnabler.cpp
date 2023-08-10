@@ -1,88 +1,257 @@
-#include <ISmmPlugin.h>
+//===== Copyright © 1996-2008, Valve Corporation, All rights reserved. ======//
+//
+// Purpose: 
+//
+// $NoKeywords: $
+//
+//===========================================================================//
+
+
+#include "igameevents.h"
+#include "eiface.h"
 #include "tier0/icommandline.h"
 
-PLUGIN_GLOBALVARS();
-SH_DECL_HOOK0(IServerGameDLL, GetTickInterval, const, 0, float);
+#include "sourcehook/sourcehook_impl.h"
 
-// i know this is defined in const.h but i'm including it for code readability
-#define DEFAULT_TICK_INT (0.015)
-#define DEFAULT_TICKRATE (1.0 / DEFAULT_TICK_INT) // = 66.666etc
 
-float Hook_GetTickInterval()
+// memdbgon must be the last include file in a .cpp file!!!
+#include "tier0/memdbgon.h"
+
+//---------------------------------------------------------------------------------
+// Purpose: a sample 3rd party plugin class
+//---------------------------------------------------------------------------------
+class CEmptyServerPlugin: public IServerPluginCallbacks, public IGameEventListener
 {
-    float tickrate      = DEFAULT_TICKRATE;
-    float tickinterval  = DEFAULT_TICK_INT;
+public:
+	CEmptyServerPlugin();
+	~CEmptyServerPlugin();
 
-    // check if the user defined a tickrate
-    if (CommandLine()->CheckParm("-tickrate"))
-    {
-        // get the tickrate value
-        tickrate = CommandLine()->ParmValue( "-tickrate", float(DEFAULT_TICKRATE) );
+	// IServerPluginCallbacks methods
+	virtual bool			Load(	CreateInterfaceFn interfaceFactory, CreateInterfaceFn gameServerFactory );
+	virtual void			Unload( void );
+	virtual void			Pause( void );
+	virtual void			UnPause( void );
+	virtual const char     *GetPluginDescription( void );      
+	virtual void			LevelInit( char const *pMapName );
+	virtual void			ServerActivate( edict_t *pEdictList, int edictCount, int clientMax );
+	virtual void			GameFrame( bool simulating );
+	virtual void			LevelShutdown( void );
+	virtual void			ClientActive( edict_t *pEntity );
+	virtual void			ClientDisconnect( edict_t *pEntity );
+	virtual void			ClientPutInServer( edict_t *pEntity, char const *playername );
+	virtual void			SetCommandClient( int index );
+	virtual void			ClientSettingsChanged( edict_t *pEdict );
+	virtual PLUGIN_RESULT	ClientConnect( bool *bAllowConnect, edict_t *pEntity, const char *pszName, const char *pszAddress, char *reject, int maxrejectlen );
+	virtual PLUGIN_RESULT	ClientCommand( edict_t *pEntity, const CCommand &args );
+	virtual PLUGIN_RESULT	NetworkIDValidated( const char *pszUserName, const char *pszNetworkID );
+	virtual void			OnQueryCvarValueFinished( QueryCvarCookie_t iCookie, edict_t *pPlayerEntity, EQueryCvarValueStatus eStatus, const char *pCvarName, const char *pCvarValue );
 
-        // convert it to a tick int value (1/x)
-        tickinterval = (1.0f / tickrate);
+	// added with version 3 of the interface.
+	virtual void			OnEdictAllocated( edict_t *edict );
+	virtual void			OnEdictFreed( const edict_t *edict  );	
 
-        // tell them that the values they set are getting set
-        Warning("\n[TFTickrate] Tickrate set to %.1f, tick interval set to %f\n\n", tickrate, tickinterval);
-    }
-    else
-    {
-        // cry about it
-        Warning("\n[TFTickrate] Tickrate not set, using default %.1f\n\n", tickrate);
-    }
+	// IGameEventListener Interface
+	virtual void FireGameEvent( KeyValues * event );
 
-    // don't call the original func
-    RETURN_META_VALUE(MRES_SUPERCEDE, tickinterval );
-}
-
-class TickRatePlugin : public ISmmPlugin
-{
-    public:
-        bool Load(PluginId id, ISmmAPI *ismm, char *error, size_t maxlen, bool late);
-        bool Unload(char *error, size_t maxlen);
-    public:
-        const char *GetAuthor();
-        const char *GetName();
-        const char *GetDescription();
-        const char *GetURL();
-        const char *GetLicense();
-        const char *GetVersion();
-        const char *GetDate();
-        const char *GetLogTag();
+	virtual int GetCommandIndex() { return m_iClientCommandIndex; }
+private:
+	int m_iClientCommandIndex;
 };
 
-TickRatePlugin g_TickRatePlugin;
-PLUGIN_EXPOSE(TickRatePlugin, g_TickRatePlugin);
-EXPOSE_SINGLE_INTERFACE_GLOBALVAR(TickRatePlugin, ISmmPlugin, INTERFACEVERSION_ISERVERPLUGINCALLBACKS, g_TickRatePlugin);
 
-IServerGameDLL *server = NULL;
+// 
+// The plugin is a static singleton that is exported as an interface
+//
+CEmptyServerPlugin g_EmtpyServerPlugin;
+EXPOSE_SINGLE_INTERFACE_GLOBALVAR(CEmptyServerPlugin, IServerPluginCallbacks, INTERFACEVERSION_ISERVERPLUGINCALLBACKS, g_EmtpyServerPlugin );
 
-bool TickRatePlugin::Load(PluginId id, ISmmAPI *ismm, char *error, size_t maxlen, bool late)
+//---------------------------------------------------------------------------------
+// Purpose: constructor/destructor
+//---------------------------------------------------------------------------------
+CEmptyServerPlugin::CEmptyServerPlugin()
 {
-    PLUGIN_SAVEVARS();
-
-    // don't need to check METAMOD_PLAPI_VERSION here
-    GET_V_IFACE_ANY(GetServerFactory, server, IServerGameDLL, INTERFACEVERSION_SERVERGAMEDLL);
-    // detour GetTickInt
-    SH_ADD_HOOK(IServerGameDLL, GetTickInterval, server, SH_STATIC(Hook_GetTickInterval), false);
-
-    // spew to user that they installed us properly
-    Warning("\n[TFTickrate] Loaded.\n\n");
-
-    return true;
+	m_iClientCommandIndex = 0;
 }
 
-bool TickRatePlugin::Unload(char *error, size_t maxlen)
+CEmptyServerPlugin::~CEmptyServerPlugin()
 {
-    SH_REMOVE_HOOK(IServerGameDLL, GetTickInterval, server, SH_STATIC(Hook_GetTickInterval), false);
-    return true;
 }
 
-const char *TickRatePlugin::GetLicense()        { return "MIT"; }
-const char *TickRatePlugin::GetVersion()        { return "0.2.0"; }
-const char *TickRatePlugin::GetDate()           { return __DATE__; }
-const char *TickRatePlugin::GetLogTag()         { return "mms-unlocked-tickrate"; }
-const char *TickRatePlugin::GetAuthor()         { return "ldesgoui, sappho.io"; }
-const char *TickRatePlugin::GetDescription()    { return "Force a TF2 server's tickrate with the -tickrate command line parameter"; }
-const char *TickRatePlugin::GetName()           { return "Unlocked Tickrate"; }
-const char *TickRatePlugin::GetURL()            { return "https://github.com/ldesgoui/mms-unlocked-tickrate"; }
+//---------------------------------------------------------------------------------
+// Purpose: called once per server frame, do recurring work here (like checking for timeouts)
+//---------------------------------------------------------------------------------
+void CEmptyServerPlugin::GameFrame( bool simulating )
+{
+}
+
+SourceHook::Impl::CSourceHookImpl g_SourceHook;
+SourceHook::ISourceHook *g_SHPtr = &g_SourceHook;
+int g_PLID = 0;
+
+SH_DECL_HOOK0(IServerGameDLL, GetTickInterval, const, 0, float);
+
+float GetTickInterval()
+{
+	float tickinterval = DEFAULT_TICK_INTERVAL;
+
+	if ( CommandLine()->CheckParm( "-tickrate" ) )
+	{
+		float tickrate = CommandLine()->ParmValue( "-tickrate", 0 );
+		if ( tickrate > 10 )
+			tickinterval = 1.0f / tickrate;
+	}
+
+	RETURN_META_VALUE(MRES_SUPERCEDE, tickinterval );
+}
+
+
+IServerGameDLL *gamedll = NULL;
+
+//---------------------------------------------------------------------------------
+// Purpose: called when the plugin is loaded, load the interface we need from the engine
+//---------------------------------------------------------------------------------
+bool CEmptyServerPlugin::Load(	CreateInterfaceFn interfaceFactory, CreateInterfaceFn gameServerFactory )
+{
+	gamedll = (IServerGameDLL*)gameServerFactory("ServerGameDLL010",NULL);
+	if(!gamedll)
+	{
+		Warning("Failed to get a pointer on ServerGameDLL.\n");
+		return false;
+	}
+
+	SH_ADD_HOOK(IServerGameDLL, GetTickInterval, gamedll, SH_STATIC(GetTickInterval), false);
+
+	return true;
+}
+
+//---------------------------------------------------------------------------------
+// Purpose: called when the plugin is unloaded (turned off)
+//---------------------------------------------------------------------------------
+void CEmptyServerPlugin::Unload( void )
+{
+	SH_REMOVE_HOOK(IServerGameDLL, GetTickInterval, gamedll, SH_STATIC(GetTickInterval), false);
+}
+
+//---------------------------------------------------------------------------------
+// Purpose: called when the plugin is paused (i.e should stop running but isn't unloaded)
+//---------------------------------------------------------------------------------
+void CEmptyServerPlugin::Pause( void )
+{
+}
+
+//---------------------------------------------------------------------------------
+// Purpose: called when the plugin is unpaused (i.e should start executing again)
+//---------------------------------------------------------------------------------
+void CEmptyServerPlugin::UnPause( void )
+{
+}
+
+//---------------------------------------------------------------------------------
+// Purpose: the name of this plugin, returned in "plugin_print" command
+//---------------------------------------------------------------------------------
+const char *CEmptyServerPlugin::GetPluginDescription( void )
+{
+	return "Tickrate_Enabler 0.5, updated, original by Didrole";
+}
+
+//---------------------------------------------------------------------------------
+// Purpose: called on level start
+//---------------------------------------------------------------------------------
+void CEmptyServerPlugin::LevelInit( char const *pMapName )
+{
+}
+
+//---------------------------------------------------------------------------------
+// Purpose: called on level start, when the server is ready to accept client connections
+//		edictCount is the number of entities in the level, clientMax is the max client count
+//---------------------------------------------------------------------------------
+void CEmptyServerPlugin::ServerActivate( edict_t *pEdictList, int edictCount, int clientMax )
+{
+}
+
+//---------------------------------------------------------------------------------
+// Purpose: called on level end (as the server is shutting down or going to a new map)
+//---------------------------------------------------------------------------------
+void CEmptyServerPlugin::LevelShutdown( void ) // !!!!this can get called multiple times per map change
+{
+}
+
+//---------------------------------------------------------------------------------
+// Purpose: called when a client spawns into a server (i.e as they begin to play)
+//---------------------------------------------------------------------------------
+void CEmptyServerPlugin::ClientActive( edict_t *pEntity )
+{
+}
+
+//---------------------------------------------------------------------------------
+// Purpose: called when a client leaves a server (or is timed out)
+//---------------------------------------------------------------------------------
+void CEmptyServerPlugin::ClientDisconnect( edict_t *pEntity )
+{
+}
+
+//---------------------------------------------------------------------------------
+// Purpose: called on 
+//---------------------------------------------------------------------------------
+void CEmptyServerPlugin::ClientPutInServer( edict_t *pEntity, char const *playername )
+{
+}
+
+//---------------------------------------------------------------------------------
+// Purpose: called on level start
+//---------------------------------------------------------------------------------
+void CEmptyServerPlugin::SetCommandClient( int index )
+{
+	m_iClientCommandIndex = index;
+}
+
+//---------------------------------------------------------------------------------
+// Purpose: called on level start
+//---------------------------------------------------------------------------------
+void CEmptyServerPlugin::ClientSettingsChanged( edict_t *pEdict )
+{
+}
+
+//---------------------------------------------------------------------------------
+// Purpose: called when a client joins a server
+//---------------------------------------------------------------------------------
+PLUGIN_RESULT CEmptyServerPlugin::ClientConnect( bool *bAllowConnect, edict_t *pEntity, const char *pszName, const char *pszAddress, char *reject, int maxrejectlen )
+{
+	return PLUGIN_CONTINUE;
+}
+
+//---------------------------------------------------------------------------------
+// Purpose: called when a client types in a command (only a subset of commands however, not CON_COMMAND's)
+//---------------------------------------------------------------------------------
+PLUGIN_RESULT CEmptyServerPlugin::ClientCommand( edict_t *pEntity, const CCommand &args )
+{
+	return PLUGIN_CONTINUE;
+}
+
+//---------------------------------------------------------------------------------
+// Purpose: called when a client is authenticated
+//---------------------------------------------------------------------------------
+PLUGIN_RESULT CEmptyServerPlugin::NetworkIDValidated( const char *pszUserName, const char *pszNetworkID )
+{
+	return PLUGIN_CONTINUE;
+}
+
+//---------------------------------------------------------------------------------
+// Purpose: called when a cvar value query is finished
+//---------------------------------------------------------------------------------
+void CEmptyServerPlugin::OnQueryCvarValueFinished( QueryCvarCookie_t iCookie, edict_t *pPlayerEntity, EQueryCvarValueStatus eStatus, const char *pCvarName, const char *pCvarValue )
+{
+}
+void CEmptyServerPlugin::OnEdictAllocated( edict_t *edict )
+{
+}
+void CEmptyServerPlugin::OnEdictFreed( const edict_t *edict  )
+{
+}
+
+//---------------------------------------------------------------------------------
+// Purpose: called when an event is fired
+//---------------------------------------------------------------------------------
+void CEmptyServerPlugin::FireGameEvent( KeyValues * event )
+{
+}
